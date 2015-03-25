@@ -122,6 +122,8 @@ var extract_tweets = function (body, cb) {
 var express = require('express')
 var app = express()
 
+app.use('/', express.static('public'));
+
 app.get('/api', function (req, res) {
   fire_search_request(function (results) {  	
   	analysed_tweets = analysed_tweets.concat(results);
