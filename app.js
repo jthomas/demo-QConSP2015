@@ -25,14 +25,12 @@ var machine_translation = watson.machine_translation({
 	});
 
 
-var fire_search_request = function () {
-	var cb = function (error, response, body) {
+var fire_search_request = function (cb) {
+	request(construct_search_url(), function (error, response, body) {
 	  if (!error && response.statusCode == 200) {	    
-	    extract_tweets(body);
+	    extract_tweets(body, cb);
 	  }
-	};
-
-	request(construct_search_url(), cb);	
+	});	
 }
 
 var get_last_tweet_date = function () {
@@ -42,7 +40,7 @@ var get_last_tweet_date = function () {
 
 var construct_search_url = function () {
 	var base_url = appEnv.getServiceURL('IBM Insights for Twitter-v5');
-	var api = "api/v1/messages/search?q=qconsp AND posted:" + get_last_tweet_date();
+	var api = "api/v1/messages/search?size=500&q=qconsp AND posted:" + get_last_tweet_date();
 
 	return base_url + api; 
 }
@@ -51,6 +49,7 @@ var update_last_tweet_time = function (time) {
 	var tweet_date = new Date(time);
 	if (tweet_date > last_tweet_date) {
 		console.log("Updating last tweet date...", tweet_date);
+		tweet_date.setSeconds(tweet_date.getSeconds() + 1);
 		last_tweet_date = tweet_date;
 	}
 }
@@ -61,19 +60,15 @@ var uses_english = function (tweet) {
 
 var convert_to_english = function (tweet) {
 	return new Promise(function (fulfill, reject) {
-		console.log(4);
 		machine_translation.translate({
 		  text: tweet.message.body, from : 'ptbr', to: 'enus' },
 		  function (err, response) {
-		  	console.log(7);
 		    if (err) {
 		      reject(err);
 		      return;
 		    } 
-			console.log(8);
 			fulfill(response.translation);
 		});
-		console.log(123);
 	});
 }
 
@@ -118,11 +113,28 @@ var analyse_tweet = function (tweet) {
 	});
 }
 
-var extract_tweets = function (body) {
+var extract_tweets = function (body, cb) {
 	var results = JSON.parse(body);
-	Promise.all(results.tweets.map(analyse_tweet)).then(function (results) {
-		console.log(results)
-	}, function (err) { console.log(err) });
+	console.log("Search resulted in " + results.tweets.length + " tweets");
+	Promise.all(results.tweets.map(analyse_tweet)).then(cb, function (err) { console.log(err) });
 }
 
-fire_search_request();
+var express = require('express')
+var app = express()
+
+app.get('/api', function (req, res) {
+  fire_search_request(function (results) {  	
+  	analysed_tweets = analysed_tweets.concat(results);
+  	console.log("Returning " + analysed_tweets.length + " total tweets");
+  	res.send(analysed_tweets);
+  });  
+})
+
+var server = app.listen(3000, function () {
+
+  var host = server.address().address
+  var port = server.address().port
+
+  console.log('Demo app listening at http://%s:%s', host, port)
+
+})
