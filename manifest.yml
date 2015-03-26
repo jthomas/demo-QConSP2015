@@ -1,0 +1,10 @@
+---
+applications:
+- name: qconsp
+  memory: 512M
+  host: qconsp
+  command: node app.js
+  services:
+  - twitter
+  - machine_translation
+  - twitter_insights

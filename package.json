@@ -17,6 +17,7 @@
     "promise": "^6.1.0",
     "request": "^2.53.0",
     "sentiment": "^1.0.2",
+    "twitter": "^1.2.5",
     "watson-developer-cloud": "^0.9.6"
   }
 }

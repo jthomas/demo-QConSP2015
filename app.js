@@ -1,29 +1,22 @@
-var cfenv = require('cfenv');
+var cfenv = require('cfenv'),
+    request = require('request'),
+    sentiment = require('sentiment'),				 
+    watson = require('watson-developer-cloud'),
+    Promise = require('promise'),
+	Twitter = require('twitter');
 
 var appEnv = cfenv.getAppEnv();
-
-var url = appEnv.getServiceURL('IBM Insights for Twitter-v5');
-
-var request = require('request');
+var creds = appEnv.getServiceCreds('machine_translation');
+var twitter_creds = appEnv.getServiceCreds('twitter');
 
 var analysed_tweets = [];
-
 var last_tweet_date = new Date(null);
 
-var sentiment = require('sentiment');				 
-
-var watson = require('watson-developer-cloud');
-
-var creds = appEnv.getServiceCreds('IBM Insights for Twitter-v5');
-
-var Promise = require('promise');
-
 var machine_translation = watson.machine_translation({
-	  username: creds.username,
-	  password: creds.password,
-	  version: 'v1'
-	});
-
+	username: creds.username,
+	password: creds.password,
+	version: 'v1'
+});
 
 var fire_search_request = function (cb) {
 	request(construct_search_url(), function (error, response, body) {
@@ -39,7 +32,7 @@ var get_last_tweet_date = function () {
 }
 
 var construct_search_url = function () {
-	var base_url = appEnv.getServiceURL('IBM Insights for Twitter-v5');
+	var base_url = appEnv.getServiceURL('twitter_insights');
 	var api = "api/v1/messages/search?size=500&q=qconsp AND posted:" + get_last_tweet_date();
 
 	return base_url + api; 
@@ -94,7 +87,8 @@ var analyse_tweet = function (tweet) {
 		var details = {};
 
 		details.content = tweet.message.body;
-		details.location = author_adddress(tweet.cde.author.location);
+		details.link = tweet.message.link;
+		details.location = author_adddress(tweet.cde.author.location);		
 
 		update_last_tweet_time(tweet.message.postedTime);
 
@@ -124,7 +118,7 @@ var app = express()
 
 app.use('/', express.static('public'));
 
-app.get('/api', function (req, res) {
+app.get('/api/tweets', function (req, res) {
   fire_search_request(function (results) {  	
   	analysed_tweets = analysed_tweets.concat(results);
   	console.log("Returning " + analysed_tweets.length + " total tweets");
@@ -132,11 +126,29 @@ app.get('/api', function (req, res) {
   });  
 })
 
-var server = app.listen(3000, function () {
+app.get('/api/tweets/embed', function (req, res) {
+  var link = req.query.link;
+  console.log("Fetching embedded tweet for " + link);
+	 
+	var client = new Twitter({
+	  consumer_key: twitter_creds.consumer_key,
+	  consumer_secret: twitter_creds.consumer_secret,
+	  access_token_key: twitter_creds.access_token_key,
+	  access_token_secret: twitter_creds.access_token_secret
+	});
+	 
+	var params = {url: link};
+	client.get('/statuses/oembed.json', params, function(error, tweets, response){
+	  if (!error) {
+	    res.send(tweets);
+	  }
+	});
 
+})
+
+var server = app.listen(cfenv.getAppEnv().port, function () {
   var host = server.address().address
   var port = server.address().port
 
-  console.log('Demo app listening at http://%s:%s', host, port)
-
+  console.log('Example app listening at http://%s:%s', host, port)
 })
