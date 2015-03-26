@@ -41,6 +41,7 @@ var show_tweet_details = function (marker, link) {
 
 var process_tweets = function (results) {
   var item = results.pop();
+  var _results = results;
   
   if (!item) return;
   if (item.location == "") process_tweets(results);
@@ -55,13 +56,14 @@ var process_tweets = function (results) {
           colour = "0000FF";
         } 
         
-        create_marker(results[0].geometry.location, colour, item.link);        
+        create_marker(results[0].geometry.location, colour, item.link);                
       } else {
-        console.log("Geocode was not successful for the following reason: " + status);
+        console.log("Geocode was not successful for the following reason: " + status);        
       }
-    });
+    setTimeout(function () { process_tweets(_results) }, 2000);
+  });
     // MAX API CALLS ONE PER SECOND
-    setTimeout(function () { process_tweets(results) }, 1000);
+    //setTimeout(function () { process_tweets(results) }, 1000);
 }
 
 var initialize = function() {
